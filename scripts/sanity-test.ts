@@ -528,6 +528,38 @@ function mks(spec: MCue[]): Cue[] {
   ok('双语合并：并列时副轨索引序列字典序更小');
 }
 
+// 30b. 决胜回归：首个副轨相同、所选主轨不同会产生不同后续副轨序列
+{
+  // 候选：(P0,S0)=1、(P1,S0)=4、(P1,S1)=2、(P1,S2)=5、(P2,S1)=2，最优总分 6。
+  // 两个最优方案的首对副轨都是 S0：
+  //   选最小主轨 P0 => 后缀只能配 S2，副轨序列 [0,2]（旧实现的错误输出）；
+  //   选主轨 P1     => 后缀可配 S1，副轨序列 [0,1]（全局字典序最小）。
+  // 决胜必须比较各可行后缀，不能因 P0 主轨索引更小就直接固定它。
+  const plan = planMerge(
+    mkm([{ s: 0, e: 1 }, { s: 0, e: 13 }, { s: 5, e: 7 }]),
+    mks([{ s: 0, e: 4 }, { s: 5, e: 7 }, { s: 8, e: 14 }]),
+  );
+  assert.strictEqual(plan.candidates.length, 5);
+  assert.ok(Math.abs(plan.totalOverlap - 6) < 1e-9);
+  assert.deepStrictEqual(
+    plan.pairs.map((p) => [p.primaryIndex, p.secondaryIndex]),
+    [[1, 0], [2, 1]],
+  );
+  assert.deepStrictEqual(plan.pairs.map((p) => p.secondaryIndex), [0, 1]);
+  assert.deepStrictEqual(plan.unmatchedPrimary, [0]);
+  assert.deepStrictEqual(plan.unmatchedSecondary, [2]);
+  // 确定性：相同输入重复求解，配对结果完全一致
+  const again = planMerge(
+    mkm([{ s: 0, e: 1 }, { s: 0, e: 13 }, { s: 5, e: 7 }]),
+    mks([{ s: 0, e: 4 }, { s: 5, e: 7 }, { s: 8, e: 14 }]),
+  );
+  assert.deepStrictEqual(
+    again.pairs.map((p) => [p.primaryIndex, p.secondaryIndex]),
+    [[1, 0], [2, 1]],
+  );
+  ok('双语合并：首个副轨相同、主轨选择影响后续副轨序列时取全局字典序最小（确定性）');
+}
+
 // 31. 输入不被修改；确认语义：副轨文本作为新一行追加，主轨字段原样保留
 {
   const main = mkm([{ s: 0, e: 4, text: '你好' }]);
