@@ -1,0 +1,8 @@
+services:
+  web:
+    build: .
+    image: webvtt-timing-fixer:latest
+    container_name: webvtt-timing-fixer
+    ports:
+      - "8080:80"
+    restart: unless-stopped
