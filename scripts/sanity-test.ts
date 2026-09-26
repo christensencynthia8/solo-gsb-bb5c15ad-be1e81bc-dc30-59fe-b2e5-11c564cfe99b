@@ -528,6 +528,30 @@ function mks(spec: MCue[]): Cue[] {
   ok('双语合并：并列时副轨索引序列字典序更小');
 }
 
+// 30b. 决胜回归：首个副轨相同、所选主轨不同会产生不同后续副轨序列
+{
+  // 候选：(p0,s0)=2、(p1,s0)=4、(p1,s1)=2，总分 4 并列两种方案：
+  //   A: (p1,s0)          副轨序列 [0]
+  //   B: (p0,s0)+(p1,s1)  副轨序列 [0,1]
+  // 同一最小副轨 s0 可匹配 p0/p1：若直接固定最小主轨 p0 会得到 [0,1]；
+  // 比较可行后缀：p0 的后缀副轨序列为 [1]，p1 的后缀为 []，[] 字典序更小，
+  // 故全局字典序最小方案为 A（选择较大的主轨 p1）。
+  const plan = planMerge(
+    mkm([{ s: 0, e: 2 }, { s: 0, e: 4 }]),
+    mks([{ s: 0, e: 4 }, { s: 2, e: 6 }]),
+  );
+  assert.deepStrictEqual(
+    plan.candidates.map((c) => [c.primaryIndex, c.secondaryIndex]),
+    [[0, 0], [1, 0], [1, 1]],
+  );
+  assert.ok(Math.abs(plan.totalOverlap - 4) < 1e-9);
+  assert.deepStrictEqual(plan.pairs.map((p) => [p.primaryIndex, p.secondaryIndex]), [[1, 0]]);
+  assert.deepStrictEqual(plan.pairs.map((p) => p.secondaryIndex), [0]);
+  assert.deepStrictEqual(plan.unmatchedPrimary, [0]);
+  assert.deepStrictEqual(plan.unmatchedSecondary, [1]);
+  ok('双语合并：首个副轨相同、主轨不同产生不同后续副轨序列时取全局字典序最小');
+}
+
 // 31. 输入不被修改；确认语义：副轨文本作为新一行追加，主轨字段原样保留
 {
   const main = mkm([{ s: 0, e: 4, text: '你好' }]);
